@@ -2,14 +2,16 @@ package com.mockitotutorial.happyhotel.booking;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
+
 
 import java.time.LocalDate;
 import java.util.*;
 
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.function.Executable;
 
 class TestBookingService {
-
 
 	private PaymentService paymentServiceMock;
 	private MailSender mailSenderMock;
@@ -23,46 +25,133 @@ class TestBookingService {
 		this.mailSenderMock = mock(MailSender.class);
 		this.roomServiceMock = mock(RoomService.class);
 		this.bookingDAOMock = mock(BookingDAO.class);
-		this.bookingServiceMock= new BookingService(paymentServiceMock, roomServiceMock, bookingDAOMock, mailSenderMock);
-		
+		this.bookingServiceMock = new BookingService(paymentServiceMock, roomServiceMock, bookingDAOMock,
+				mailSenderMock);
 
 	}
 
 	@Test
 	void testCalculatePrice() {
-		//given
-		BookingRequest bookingRequest = new BookingRequest("1", LocalDate.of(2023, 03, 25), LocalDate.of(2023, 03, 27), 2, false);
-		double expectedPrice=2*2*50.0;
-				
-		//when
-		double actualPrice=bookingServiceMock.calculatePrice(bookingRequest);
-		//then
+		// given
+		BookingRequest bookingRequest = new BookingRequest("1", LocalDate.of(2023, 03, 25), LocalDate.of(2023, 03, 27),
+				2, false);
+		double expectedPrice = 2 * 2 * 50.0;
+
+		// when
+		double actualPrice = bookingServiceMock.calculatePrice(bookingRequest);
+		// then
 		assertEquals(expectedPrice, actualPrice);
 	}
 
 	@Test
 	void testCalculatePriceEuro() {
-		BookingRequest bookingRequest = new BookingRequest("1", LocalDate.of(2023, 03, 25), LocalDate.of(2023, 03, 27), 2, false);
-		double expectedPrice=CurrencyConverter.toEuro(2*2*50.0);
-				
-		//when
-		double actualPrice=bookingServiceMock.calculatePriceEuro(bookingRequest);
-		//then
+		BookingRequest bookingRequest = new BookingRequest("1", LocalDate.of(2023, 03, 25), LocalDate.of(2023, 03, 27),
+				2, false);
+		double expectedPrice = CurrencyConverter.toEuro(2 * 2 * 50.0);
+
+		// when
+		double actualPrice = bookingServiceMock.calculatePriceEuro(bookingRequest);
+		// then
 		assertEquals(expectedPrice, actualPrice);
+	}
+
+	@Test
+
+	void testGetAvailablePlaceCount() {
+
+		// given returning one room
+		List<Room> rooms = Arrays.asList(new Room("1", 2));
+		when(roomServiceMock.getAvailableRooms()).thenReturn(rooms);
+		int expectedPlaceCount = 2;
+		// when
+		int actualPlaceCount = bookingServiceMock.getAvailablePlaceCount();
+
+		// then
+		assertEquals(expectedPlaceCount, actualPlaceCount);
+
+	}
+
+	@Test
+	void testGetAvailablePlacesCount() {
+
+		// given returning multiple room
+		List<Room> rooms = Arrays.asList(new Room("Room1", 2), new Room("Room2", 4));
+		when(roomServiceMock.getAvailableRooms()).thenReturn(rooms);
+		int expectedPlaceCount = 6;
+		// when
+		int actualPlaceCount = bookingServiceMock.getAvailablePlaceCount();
+
+		// then
+		assertEquals(expectedPlaceCount, actualPlaceCount);
+
+	}
+
+	@Test
+	void should_Count_AvailablePlacesCount_WhenCalledMultipleTimes() {
+
+		// given returning multiple room
+		
+		when(roomServiceMock.getAvailableRooms()).thenReturn(Collections.singletonList(new Room("Room1", 2))).thenReturn(Collections.emptyList());
+		int expectedPlaceCount = 2;
+		// when
+		int actualPlaceCount = bookingServiceMock.getAvailablePlaceCount();
+		int actualPlaceCountGain = bookingServiceMock.getAvailablePlaceCount();
+
+		// then
+		assertAll(()-> assertEquals(actualPlaceCount, expectedPlaceCount),
+				()->assertEquals(actualPlaceCountGain,0));
+
 	}
 	
 	@Test
-	void testGetAvailablePlaceCount() {
+	void should_throw_Exception_WhenNoRoomsAvailable() {
+		// given
+		BookingRequest bookingRequest = new BookingRequest("1", LocalDate.of(2023, 03, 25), LocalDate.of(2023, 03, 27),
+				2, false);
+		when(roomServiceMock.findAvailableRoomId(bookingRequest)).thenThrow(BusinessException.class);
 		
-		//given returning one room
-		List<Room> rooms = Arrays.asList(new Room("1",2));
-		when(roomServiceMock.getAvailableRooms()).thenReturn(rooms);
-		int expectedPlaceCount=2;
 		//when
-		int actualPlaceCount=bookingServiceMock.getAvailablePlaceCount();
+		Executable executable = ()->bookingServiceMock.makeBooking(bookingRequest);
+		
+		assertThrows(BusinessException.class, executable);		
+	}
+	
+	@Test
+	void should_throw_Exception_PriceIsTooHigh() {
+		// given
+		BookingRequest bookingRequest = new BookingRequest("1", LocalDate.of(2023, 03, 25), LocalDate.of(2023, 03, 27),
+				2, true);
+		//any() --object matcher, anyDouble --primitive type matcher. Here pay method accepts bookingrequest object and price (double) as params.
+		when(paymentServiceMock.pay(any(), anyDouble())).thenThrow(BusinessException.class);
+		
+		//when
+		Executable executable = ()->bookingServiceMock.makeBooking(bookingRequest);
+		
+		assertThrows(BusinessException.class, executable);		
+	}
+	
+	@Test
+	void should_verify_the_paymentmethod_IsCalled() {
+		// given
+		BookingRequest bookingRequest = new BookingRequest("1", LocalDate.of(2023, 03, 25), LocalDate.of(2023, 03, 27),2, true);
+			
+		
+		//Wheno
+		bookingServiceMock.makeBooking(bookingRequest);
 		
 		//then
-		assertEquals(expectedPlaceCount, actualPlaceCount);
+		//This ensures that the booking was made with 200 calcuated price for two days of accomodation for 2 guests
+		//Verifies certain behavior happened once
+		verify(paymentServiceMock,times(1)).pay(bookingRequest, 200.0);
 		
+		//Allows verifying exact number of invocations. E.g:   verify(mock, times(2)).someMethod("some arg");
+		//verify(paymentServiceMock, times(2)).pay(bookingRequest, 200.0);
+		
+		//Verifies that no interactions happened on given mocks. verifyNoInteractions(mockOne, mockTwo);
+
+			//verifyNoInteractions(paymentServiceMock);
+		
+		//You can use this method after you verified your mocks - to make sure that nothingelse was invoked on your mocks.
+		verifyNoMoreInteractions(paymentServiceMock);
 	}
 }

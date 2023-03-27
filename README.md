@@ -1,4 +1,24 @@
 # MockitoForMe
+The when() method in Mockito is used to specify the behavior of a mock object when a method is called on it. It is used in conjunction with the thenReturn(), thenAnswer(), or thenThrow() methods to specify the value that the mock object should return, the behavior it should exhibit, or the exception it should throw when a specific method is called on it.
+
+Here's an example of how you can use when() to specify the behavior of a mock object:
+
+```java
+// Create a mock object of a calculator
+Calculator calculator = Mockito.mock(Calculator.class);
+
+// Specify the behavior of the add() method when called on the mock object
+Mockito.when(calculator.add(2, 3)).thenReturn(5);
+
+// Call the add() method on the mock object
+int result = calculator.add(2, 3);
+
+// Verify that the mock object returned the expected value
+Assert.assertEquals(5, result);
+```
+In this example, we create a mock object of a Calculator class using Mockito.mock(). We then use the when() method to specify the behavior of the add() method when called on the mock object. We specify that when the add() method is called with the arguments 2 and 3, it should return 5. Finally, we call the add() method on the mock object, and verify that it returned the expected value using Assert.assertEquals().
+
+By using when() to specify the behavior of mock objects, we can control the output of our tests and ensure that our code behaves as expected under different conditions and scenarios.
 
 ## Check the Coverage
 RightClick - > CoverageAs - > JunitTest
@@ -191,3 +211,31 @@ assertAll(()->assertEquals(200.0, capturedArguments.get(0)),
 
 @ExtendWith
 @Spy
+
+## @InjectMocks
+In Mockito, the @InjectMocks annotation is used to inject mock objects into a class that is being tested. The @InjectMocks annotation is used in conjunction with a test class, and it tells Mockito to inject any mock objects that have been created for the class being tested.
+
+Here's an example of how you can use the @InjectMocks annotation in Mockito:
+
+```java
+@RunWith(MockitoJUnitRunner.class)
+public class BookingServiceTest {
+
+    @Mock
+    private PaymentService paymentServiceMock;
+
+    @InjectMocks
+    private BookingService bookingService;
+
+    @Test
+    public void testMakePayment() {
+        // Test code that uses the bookingService object
+    }
+}
+```
+
+In this example, we create a test class called BookingServiceTest. We use the @RunWith(MockitoJUnitRunner.class) annotation to tell JUnit to use the MockitoJUnitRunner class to run our tests. We then use the @Mock annotation to create a mock object of the PaymentService class and assign it to the paymentServiceMock field.
+
+We also use the @InjectMocks annotation to inject any mock objects that have been created for the BookingService class into the bookingService field. This means that any dependencies of the BookingService class, such as the PaymentService mock object we created, will be automatically injected into the bookingService object when the test is run.
+
+By using the @InjectMocks annotation, we can simplify our test setup code and reduce the amount of boilerplate code we need to write in our test classes. This can make our tests more readable and maintainable, and can help us focus on testing the behavior of our code rather than its implementation details.
